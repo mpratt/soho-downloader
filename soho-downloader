@@ -255,8 +255,8 @@ soho_query()
 soho_update()
 {
 	echo "Buscando por actualizaciones......"
-	local updateurl="http://www.michael-pratt.com"
-	local remoteversion=$(curl -s $updateurl | egrep -i '\$version=(.*)' | egrep -o '[[:digit:]\.]+ | sed 's:\.::g'')
+	local updateurl="https://github.com/mpratt/soho-downloader"
+	local remoteversion=$(curl -s $updateurl | egrep -i '\$version=(.*)' | egrep -o '[[:digit:]\.]+' | sed 's:\.::g')
 
 	if [ -z "$remoteversion" ]; then
 		soho_echo "***** No pude determinar la version mas reciente de este script ******"
