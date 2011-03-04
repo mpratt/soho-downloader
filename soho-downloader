@@ -1,0 +1,375 @@
+#!/bin/bash
+############################################################
+# Script en Bash encargado de descargar las fotos de la
+# galeria de soho.com.co.
+# Autor: Michael Pratt | http://wwww.michael-pratt.com/
+#
+# Licencia: MIT
+# Copyright (C) 2011 by Michael Pratt <pratt@hablarmierda.net>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+###########################################################
+#set -e
+shopt -s checkwinsize
+APPNAME="Soho Downloader"
+VERSION="1.0.0"
+CWD=$(pwd)
+TMPDIR=${TMPDIR:- $(mktemp -d -t soho_script.XXXXXX)}
+DOWNLOADDIR=${DOWNLOADDIR:- $CWD/GaleriaSoho}
+DIALOG=${DIALOG:- dialog}
+AUTOUPDATES=${AUTOUPDATES:- 1}
+DEBUG=${DEBUG:- 0}
+
+! [ -e "$DOWNLOADDIR" ] && (mkdir -p ${DOWNLOADDIR})
+! [ -e "$TMPDIR" ] && (mkdir -p ${TMPDIR})
+
+trap "soho_exit" 0 1 2 5 15
+#################################################################
+# Funcion encargada de crear un logsito bien sabroso XD
+#################################################################
+soho_log()
+{
+	echo "$(date +%H:%M:%S): ${1}" >> ${CWD}/soho.log
+	[ -n "${2}" ] && [[ "${2}" == "out" ]] && echo "${1}"
+}
+soho_echo() { soho_log "${1}" "out"; }
+
+#################################################################
+# Funcion encargada de limpiar el directorio temporal
+#################################################################
+soho_exit()
+{
+	rm -rf ${TMPDIR}
+	soho_log "======================================================================="
+	soho_log "Finalizando Script"
+	soho_log "======================================================================="
+	soho_log ""
+	exit 0
+}
+
+#################################################################
+# Funcion encargada de crear una lista con toda la informacion
+# el Formato de la lista es NOMBREGALERIA|IDGALERIA|EDICION
+#################################################################
+soho_fetch_list()
+{
+	cd ${TMPDIR}
+	local listurl="http://www.soho.com.co/galerias-mujeres/galeria/adriana-tono/16461" # No puede ser http://www.soho.com.co/home-mujeres!!
+	echo "Descargando la lista de modelos ......"
+	curl --connect-timeout 5 -A 'Mozilla/5.0' -s ${listurl} | egrep -i '<option (.*)?value="' | uniq | egrep -i -o 'galeria([^"]+)' | sed 's:galerias-mujeres/::g; s:galeria/::g; s:/:|:g;' > ${TMPDIR}/ids
+	echo "Descargando la lista de ediciones ......"
+	curl --connect-timeout 5 -A 'Mozilla/5.0' -s ${listurl} | egrep -i '<option (.*)?value="' | uniq | egrep -i 'galeria([^"]+)' | egrep -o '[[:digit:]]+</option>' | egrep -o '[[:digit:]]+' > ${TMPDIR}/eds
+
+	if [ "$(stat -c%s ${TMPDIR}/ids)" -eq 0 ] || [ "$(stat -c%s ${TMPDIR}/eds)" -eq 0 ]; then
+		soho_echo "Error Fatal! No pude encontrar la lista con las modelos y ediciones :("
+		echo "Verifica tu conexion a internet."
+		exit 1
+	fi
+
+	if [[ "$(cat ${TMPDIR}/ids | wc -l)" != "$(cat ${TMPDIR}/eds | wc -l)" ]]; then
+		soho_echo "Advertencia: El numero de ids ($(cat ${TMPDIR}/ids | wc -l)) no coincide con el numero de ediciones $(cat ${TMPDIR}/eds | wc -l)"
+	fi
+
+	echo "Combinando lista de modelos/ediciones"
+	paste -d "|" ${TMPDIR}/ids ${TMPDIR}/eds > ${TMPDIR}/main_list
+	rm -rf ${TMPDIR}/{ids,eds}
+
+	# TODO: Ver si puedo usar otro metodo para coger la lista MAS RECIENTE de modelos/ediciones, probablemente via:
+	# <?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><getLstGalerias xmlns="http://tempuri.org/"><titulo>string</titulo><orden>string</orden><tipoItem>int</tipoItem><pagina>int</pagina></getLstGalerias></soap:Body></soap:Envelope>
+}
+
+#################################################################
+# Funcion para descargar una galeria
+#################################################################
+soho_download_gallery()
+{
+	local gallery=${1}
+	if [ -z "$gallery" ] || [ -z "$(echo $gallery | egrep '^[[:digit:]]+$')" ]; then
+		soho_echo "*** Error: El id de la galeria es invalido ($gallery)"
+		return 1
+	fi
+
+	echo "Opteniendo Informacion sobre la Galeria $gallery......... "
+	local images=$(curl --connect-timeout 10 -A 'Mozilla/5.0' -s -H 'content-type: text/xml' -d '<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><getGaleria xmlns="http://tempuri.org/"><idItem>'$gallery'</idItem><idTipoImagen>1</idTipoImagen></getGaleria></soap:Body></soap:Envelope>' http://www.soho.com.co/ws/wsGaleria.asmx |  sed 's/"/\n/g' | egrep -i -o 'http:(.*)jpg')
+	local galleryname=$(grep '|'$gallery'|' $TMPDIR/main_list | awk 'BEGIN {FS="|"} {print $1}')
+	local galleryedition=$(grep '|'$gallery'|' $TMPDIR/main_list | awk 'BEGIN {FS="|"} {print $3}')
+	local gallerypics=$(echo $images | wc -w)
+
+	if [ -z "$galleryname" ] || [ -z "$galleryedition" ] || [ -z "$images" ]; then
+		soho_echo "*** Error: No existe la galeria con id ${gallery}"
+
+		if [ "$DEBUG" -eq "1" ]; then
+			soho_log "Nombre Galeria: $galleryname"
+			soho_log "Edicion Galeria: $galleryedition"
+			soho_log "Imagenes: $images"
+		fi
+
+		# Mejor un return que un exit, asi no se interrumpe ningun proceso
+		return 1
+	fi
+
+	echo "======================================================================="
+	echo "Existen $gallerypics Imagenes en la Galeria $galleryname - Edicion $galleryedition"
+	echo "======================================================================="
+	echo "Creando directorio $DOWNLOADDIR/$galleryname"
+	cd ${DOWNLOADDIR}
+	mkdir -p ${galleryname}
+	cd ${galleryname}
+	soho_log "Bajando $gallerypics imagenes de la galeria $galleryname"
+
+	local i=1
+	for url in ${images}; do
+		[ "$DEBUG" -eq "1" ] && soho_log "Bajando Galeria $galleryname - Imagen: $url"
+		echo "Bajando: $i de $gallerypics"
+		wget --user-agent="Mozilla/5.0" --quiet -O pic${i}.jpg ${url}
+
+		if [ -f "pic${i}.jpg" ] && [ "$(stat -c%s pic${i}.jpg)" -gt 0 ]; then
+				mv pic${i}.jpg ${galleryname}_Edicion-${galleryedition}_${i}.jpg
+			else
+				soho_echo "Error: No pude descargar la imagen $url"
+		fi
+
+		((i++))
+	done
+
+	[ "$i" -lt "$gallerypics" ] && soho_log "***** La galeria $galleryname no fue bajada completamente ($i de $gallerypics)"
+	echo "======================================================================="
+	echo "Galeria $galleryname terminada!"
+	echo "======================================================================="
+	echo ""
+	[ "$DEBUG" -eq 1 ] && soho_log "Fin $galleryname"
+}
+
+#################################################################
+# Funcion para descargar todas las galerias
+#################################################################
+soho_download_all()
+{
+	cd ${TMPDIR}
+	awk 'BEGIN {FS="|"} {print $2}' main_list > total_ids
+	for id in $(cat $TMPDIR/total_ids); do
+		soho_download_gallery ${id}
+	done
+	rm -rf ${TMPDIR}/total_ids
+}
+
+#################################################################
+# Funcion para descargar las galerias mas recientes
+#################################################################
+soho_download_recent()
+{
+	local recent=${1}
+	[ -z "$recent" ] && recent=4
+
+	cd ${TMPDIR}
+	awk 'BEGIN {FS="|"} {print $3}' ${TMPDIR}/main_list | tr -d [:alpha:] | tr -d [:punct:] | \
+	sort -n | tr -d [:blank:] | uniq | tail -n ${recent} > recent_eds
+
+	echo "Buscando las $recent Ediciones mas recientes..."
+	for ed in $(cat ${TMPDIR}/recent_eds); do
+		for id in $(egrep '\|'$ed'$' ${TMPDIR}/main_list | awk 'BEGIN {FS="|"} {print $2}'); do
+			soho_download_gallery ${id}
+		done
+	done
+
+	rm -rf ${TMPDIR}/recent_eds
+}
+
+#################################################################
+# Funcion encargada de buscar por modelos y descargar sus galerias
+#################################################################
+soho_search()
+{
+	if [ "$#" -eq 0 ] || [ -z "$1" ]; then
+		soho_echo "Debes introducir un texto para iniciar la busqueda"
+		exit 0
+	fi
+
+	clear
+	echo "Buscando Galerias ......."
+	local i=1
+	local total=$(cat $TMPDIR/main_list | wc -l)
+	touch ${TMPDIR}/dialog_in
+	exec < ${TMPDIR}/main_list
+	(while read line; do
+		local match=$(echo $line | egrep -i $(echo $@ | sed "s: :|:g"))
+
+		if [ -n "$match" ]; then
+			local name=$(echo $line | awk 'BEGIN {FS="|"} {print $1}')
+			local edition="(Edicion_$(echo $line | awk 'BEGIN {FS="|"} {print $3}'))"
+			local id=$(echo $line | awk 'BEGIN {FS="|"} {print $2}')
+			printf "\"%s\" \"%s\" off \\ \n" ${id} $(echo ${name}${edition}) >> ${TMPDIR}/dialog_in
+		fi
+
+		((i++))
+		echo $(echo $i*100/$total | bc)
+	done) | ${DIALOG} --clear --title "$APPNAME $VERSION" --backtitle "$APPNAME $VERSION" --gauge "Buscando en la lista de modelos $(echo $@ | sed 's:|:+:g')" 15 110 0
+	[ "$DEBUG" -eq 1 ] && soho_log "Buscando '$@' en $i lineas de $(cat $TMPDIR/main_list | wc -l)"
+
+	if [ "$(stat -c%s $TMPDIR/dialog_in)" -eq 0 ]; then
+		clear
+		soho_echo "No se encontraron galerias con el termino '$(echo $@ | sed 's: :|:g')' - Finalizando..."
+		exit 0
+	fi
+	cat ${TMPDIR}/dialog_in | uniq | xargs ${DIALOG} --title "$APPNAME $VERSION" --backtitle "$APPNAME $VERSION" --item-help --separate-output --checklist "Escoge las Modelos que quieres descargar: ($(cat $TMPDIR/dialog_in | wc -l) resultados)" 19 70 10 2> ${TMPDIR}/search
+
+	for galleryid in $(cat $TMPDIR/search | sort -u); do
+		soho_download_gallery ${galleryid}
+	done
+
+	rm -rf ${TMPDIR}/{dialog_in,search}
+}
+
+#################################################################
+# Funcion encargada de mostrar un formulario para buscar galerias
+#################################################################
+soho_query()
+{
+	${DIALOG} --clear --title "$APPNAME $VERSION" \
+              --backtitle "$APPNAME $VERSION" \
+              --inputbox "Escribe los nombres de las modelos o galerias que estas buscando: (Ej: Natalia, Piscina)" 15 110 2> ${TMPDIR}/findme
+
+	soho_search $(cat $TMPDIR/findme)
+	rm -rf ${TMPDIR}/findme
+}
+
+#################################################################
+# Funcion encargada de buscar por actualizaciones a este script
+#################################################################
+soho_update()
+{
+	echo "Buscando por actualizaciones......"
+	local updateurl="http://www.michael-pratt.com"
+	local remoteversion=$(curl -s $updateurl | egrep -i '\$version=(.*)' | egrep -o '[[:digit:]\.]+ | sed 's:\.::g'')
+
+	if [ -z "$remoteversion" ]; then
+		soho_echo "***** No pude determinar la version mas reciente de este script ******"
+	elif [ "$remoteversion" -gt "$(echo $VERSION | sed 's:\.::g')" ]; then
+		soho_echo "**** Hay una version nueva de este script ****"
+		echo "**** Visita http://www.michael-pratt.com para descargar la nueva version ****"
+		sleep 5
+	elif [ "$remoteversion" -eq "$(echo $VERSION | sed 's:\.::g')" ]; then
+		echo "Estas usando la version mas reciente :)"
+	fi
+}
+
+#################################################################
+# Funcion que muestra la ayuda
+#################################################################
+soho_help()
+{
+	clear
+	echo "$APPNAME - $VERSION"
+	echo "Requerimientos: ${DIALOG}, wget, curl"
+	echo "Script en bash que descarga las galerias de soho.com"
+	echo "Autor: Michael Pratt <pratt@hablarmierda.net>"
+	echo "Url: http://www.michael-pratt.com/"
+	echo "Licencia: MIT X11 http://www.opensource.org/licenses/mit-license.php"
+	echo ""
+	echo "Uso: $(basename $0) [opciones]"
+	echo "	-m | --menu"
+	echo "	-s | --search [modelo|galeria]"
+	echo "	-a | --all (Descarga todas las galerias)"
+	echo "	-r | --recent [cantidad]"
+	echo "	-u | --update (Busca por actualizaciones)"
+	echo "	-h | --help (Muestra este mensaje)"
+	exit 0
+}
+
+#################################################################
+# Menu Grafico con ayuda de $DIALOG
+#################################################################
+soho_menu()
+{
+	cd ${TMPDIR}
+	${DIALOG} --clear --title "$APPNAME $VERSION" \
+			  --backtitle "$APPNAME $VERSION" \
+			  --menu "Escoge tu arma:" 15 110 8 \
+			  "1" "Escoge las galerias que quieres descargar" \
+			  "2" "Bajar Todas las galerias disponibles" \
+			  "3" "Busca una galeria por nombre o modelo" \
+			  "4" "Baja las galerias de las 4 ediciones mas recientes" \
+			  "5" "Baja las galerias de la ultima edicion disponible" \
+			  "6" "Asegurate de estar usando la version mas reciente de este Script" \
+			  "7" "Necesitas Ayuda?" 2> ${TMPDIR}/menu
+
+	case "$(cat ${TMPDIR}/menu)" in
+		1) soho_search ".*";;
+		2) soho_download_all;;
+		3) soho_query ;;
+		4) soho_download_recent 4;;
+		5) soho_download_recent 1;;
+		6) soho_update ;;
+		7) soho_help ;;
+		*) clear && echo "Chao!";;
+	esac
+
+	rm -rf ${TMPDIR}/menu
+}
+
+#################################################################
+# Funcion encargada de verificar dependencias
+#################################################################
+soho_requires()
+{
+	local app
+	for app in ${@}; do
+		echo "Verificando $app....."
+		if ! [ "$(which $app 2> /dev/null)" ]; then
+			soho_echo "*** Error Fatal! Para correr este script se requiere la instalacion de $app"
+			exit 1
+		fi
+	done
+}
+
+#################################################################
+# En aquellos dias, era imposible conciliar el sueno......
+#################################################################
+soho_echo "======================================================================="
+soho_echo "$APPNAME - $VERSION"
+echo "Las fotos pertenecen a la pagina de Soho | http://www.soho.com.co"
+echo "Script creado por Michael Pratt <pratt@hablarmierda.net>"
+soho_echo "======================================================================="
+soho_requires curl ${DIALOG} wget
+[ "$DEBUG" -eq 1 ] && soho_log "$(bash --version | head -n 1)" && soho_echo "Comando Usado: ./$(basename $0) $@"
+[ "$AUTOUPDATES" -eq 1 ] && soho_update
+soho_fetch_list
+
+case "$1" in
+      -m|--menu) soho_menu;;
+
+      -s|--search)
+		shift
+		soho_search ${@};;
+
+      -a|--all) soho_download_all;;
+
+      -r|--recent)
+		shift
+		soho_download_recent ${1};;
+
+      -u|--update) soho_update;;
+
+      -h|--help) soho_help;;
+
+      *) soho_menu;;
+esac
+exit 0
+# Por si acaso, un codigo de subscripcion a soho es "141516". Quizas lo tenga que usar en otras versiones :S
+# Por cierto. Si estas leyendo esto, espero que puedas enviarme mejorias a <pratt@hablarmierda.net>. Happy Hacking!
