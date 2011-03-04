@@ -72,9 +72,9 @@ soho_fetch_list()
 	cd ${TMPDIR}
 	local listurl="http://www.soho.com.co/galerias-mujeres/galeria/adriana-tono/16461" # No puede ser http://www.soho.com.co/home-mujeres!!
 	echo "Descargando la lista de modelos ......"
-	curl --connect-timeout 5 -A 'Mozilla/5.0' -s ${listurl} | egrep -i '<option (.*)?value="' | uniq | egrep -i -o 'galeria([^"]+)' | sed 's:galerias-mujeres/::g; s:galeria/::g; s:/:|:g;' > ${TMPDIR}/ids
+	curl --connect-timeout 20 -A 'Mozilla/5.0' -s ${listurl} | egrep -i '<option (.*)?value="' | uniq | egrep -i -o 'galeria([^"]+)' | sed 's:galerias-mujeres/::g; s:galeria/::g; s:/:|:g;' > ${TMPDIR}/ids
 	echo "Descargando la lista de ediciones ......"
-	curl --connect-timeout 5 -A 'Mozilla/5.0' -s ${listurl} | egrep -i '<option (.*)?value="' | uniq | egrep -i 'galeria([^"]+)' | egrep -o '[[:digit:]]+</option>' | egrep -o '[[:digit:]]+' > ${TMPDIR}/eds
+	curl --connect-timeout 20 -A 'Mozilla/5.0' -s ${listurl} | egrep -i '<option (.*)?value="' | uniq | egrep -i 'galeria([^"]+)' | egrep -o '[[:digit:]]+</option>' | egrep -o '[[:digit:]]+' > ${TMPDIR}/eds
 
 	if [ "$(stat -c%s ${TMPDIR}/ids)" -eq 0 ] || [ "$(stat -c%s ${TMPDIR}/eds)" -eq 0 ]; then
 		soho_echo "Error Fatal! No pude encontrar la lista con las modelos y ediciones :("
@@ -106,7 +106,7 @@ soho_download_gallery()
 	fi
 
 	echo "Opteniendo Informacion sobre la Galeria $gallery......... "
-	local images=$(curl --connect-timeout 10 -A 'Mozilla/5.0' -s -H 'content-type: text/xml' -d '<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><getGaleria xmlns="http://tempuri.org/"><idItem>'$gallery'</idItem><idTipoImagen>1</idTipoImagen></getGaleria></soap:Body></soap:Envelope>' http://www.soho.com.co/ws/wsGaleria.asmx |  sed 's/"/\n/g' | egrep -i -o 'http:(.*)jpg')
+	local images=$(curl --connect-timeout 20 -A 'Mozilla/5.0' -s -H 'content-type: text/xml' -d '<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><getGaleria xmlns="http://tempuri.org/"><idItem>'$gallery'</idItem><idTipoImagen>1</idTipoImagen></getGaleria></soap:Body></soap:Envelope>' http://www.soho.com.co/ws/wsGaleria.asmx |  sed 's/"/\n/g' | egrep -i -o 'http:(.*)jpg')
 	local galleryname=$(grep '|'$gallery'|' $TMPDIR/main_list | awk 'BEGIN {FS="|"} {print $1}')
 	local galleryedition=$(grep '|'$gallery'|' $TMPDIR/main_list | awk 'BEGIN {FS="|"} {print $3}')
 	local gallerypics=$(echo $images | wc -w)
@@ -289,6 +289,7 @@ soho_help()
 	echo "	-r | --recent [cantidad]"
 	echo "	-u | --update (Busca por actualizaciones)"
 	echo "	-h | --help (Muestra este mensaje)"
+	echo ""
 	exit 0
 }
 
@@ -339,8 +340,13 @@ soho_requires()
 }
 
 #################################################################
-# En aquellos dias, era imposible conciliar el sueno......
+# En aquellos dias, era imposible conciliar el sueño......
 #################################################################
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+	soho_help
+	exit 0
+fi
+
 soho_echo "======================================================================="
 soho_echo "$APPNAME - $VERSION"
 echo "Las fotos pertenecen a la pagina de Soho | http://www.soho.com.co"
@@ -365,8 +371,6 @@ case "$1" in
 		soho_download_recent ${1};;
 
       -u|--update) soho_update;;
-
-      -h|--help) soho_help;;
 
       *) soho_menu;;
 esac
