@@ -1,9 +1,12 @@
 Soho Downloader Changelog:
 Autor: Michael Pratt <pratt@hablarmierda>
 
+Version 1.0.1: 08/03/2011
+* Mejorias al README y al script en si. Principalmente estuve tratando de mejorar la velocidad de inicio.
+
 Version 1.0.0: 27/02/2011
 * Llego la hora de reescribir este script. La gloriosa version 0.9.9 dejo de funcionar en diciembre del 2010,
-  pues soho.com cambio su galeria. Ahora soho volvio a usar archivos XML para servir la informacion de las galerias (Como
+  pues soho.com cambio su galeria. Ahora soho usa SOAP (json) para servir la informacion de las galerias (Casi como
   lo hizo inicialmente en el 2007). El script ahora depende del programa CURL. Varias opciones fueron cambiadas.
 
 * El proyecto ahora sera hospedado en http://github.com/mpratt/soho-downloader/

@@ -28,7 +28,7 @@
 #set -e
 shopt -s checkwinsize
 APPNAME="Soho Downloader"
-VERSION="1.0.0"
+VERSION="1.0.1"
 CWD=$(pwd)
 TMPDIR=${TMPDIR:- $(mktemp -d -t soho_script.XXXXXX)}
 DOWNLOADDIR=${DOWNLOADDIR:- $CWD/GaleriaSoho}
@@ -43,12 +43,8 @@ trap "soho_exit" 0 1 2 5 15
 #################################################################
 # Funcion encargada de crear un logsito bien sabroso XD
 #################################################################
-soho_log()
-{
-	echo "$(date +%H:%M:%S): ${1}" >> ${CWD}/soho.log
-	[ -n "${2}" ] && [[ "${2}" == "out" ]] && echo "${1}"
-}
-soho_echo() { soho_log "${1}" "out"; }
+soho_log() { echo "$(date +%H:%M:%S): ${1}" >> ${CWD}/soho.log; }
+soho_echo() { echo ${1} && soho_log "${1}"; }
 
 #################################################################
 # Funcion encargada de limpiar el directorio temporal
@@ -70,11 +66,12 @@ soho_exit()
 soho_fetch_list()
 {
 	cd ${TMPDIR}
-	local listurl="http://www.soho.com.co/galerias-mujeres/galeria/adriana-tono/16461" # No puede ser http://www.soho.com.co/home-mujeres!!
-	echo "Descargando la lista de modelos ......"
-	curl --connect-timeout 20 -A 'Mozilla/5.0' -s ${listurl} | egrep -i '<option (.*)?value="' | uniq | egrep -i -o 'galeria([^"]+)' | sed 's:galerias-mujeres/::g; s:galeria/::g; s:/:|:g;' > ${TMPDIR}/ids
-	echo "Descargando la lista de ediciones ......"
-	curl --connect-timeout 20 -A 'Mozilla/5.0' -s ${listurl} | egrep -i '<option (.*)?value="' | uniq | egrep -i 'galeria([^"]+)' | egrep -o '[[:digit:]]+</option>' | egrep -o '[[:digit:]]+' > ${TMPDIR}/eds
+	local listurl="http://www.soho.com.co/galerias-mujeres/galeria/marbelle/15211" # No puede ser http://www.soho.com.co/home-mujeres!!
+	echo "Descargando la lista de modelos y ediciones ......"
+	#wget --user-agent="Mozilla/5.0" --quiet -O ${TMPDIR}/source ${listurl}
+	curl --connect-timeout 20 -A 'Mozilla/5.0' -s ${listurl} > ${TMPDIR}/source
+	egrep -i '<option (.*)?value="' ${TMPDIR}/source | uniq | egrep -i -o 'galeria([^"]+)' | sed 's:galerias-mujeres/::g; s:galeria/::g; s:/:|:g;' > ${TMPDIR}/ids
+	egrep -i '<option (.*)?value="' ${TMPDIR}/source | uniq | egrep -i 'galeria([^"]+)' | egrep -o '[[:digit:]]+</option>' | egrep -o '[[:digit:]]+' > ${TMPDIR}/eds
 
 	if [ "$(stat -c%s ${TMPDIR}/ids)" -eq 0 ] || [ "$(stat -c%s ${TMPDIR}/eds)" -eq 0 ]; then
 		soho_echo "Error Fatal! No pude encontrar la lista con las modelos y ediciones :("
@@ -88,7 +85,7 @@ soho_fetch_list()
 
 	echo "Combinando lista de modelos/ediciones"
 	paste -d "|" ${TMPDIR}/ids ${TMPDIR}/eds > ${TMPDIR}/main_list
-	rm -rf ${TMPDIR}/{ids,eds}
+	rm -rf ${TMPDIR}/{ids,eds,source}
 
 	# TODO: Ver si puedo usar otro metodo para coger la lista MAS RECIENTE de modelos/ediciones, probablemente via:
 	# <?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><getLstGalerias xmlns="http://tempuri.org/"><titulo>string</titulo><orden>string</orden><tipoItem>int</tipoItem><pagina>int</pagina></getLstGalerias></soap:Body></soap:Envelope>
@@ -255,17 +252,20 @@ soho_query()
 soho_update()
 {
 	echo "Buscando por actualizaciones......"
-	local updateurl="https://github.com/mpratt/soho-downloader"
-	local remoteversion=$(curl -s $updateurl | egrep -i '\$version=(.*)' | egrep -o '[[:digit:]\.]+' | sed 's:\.::g')
+	local updateurl="https://github.com/mpratt/soho-downloader/raw/master/README"
+	local remoteversion=$(curl --connect-timeout 10 -A 'Mozilla/5.0' -s $updateurl | egrep -i '\$version=(.*)' | egrep -o '[[:digit:]\.]+' | sed 's:\.::g')
 
 	if [ -z "$remoteversion" ]; then
 		soho_echo "***** No pude determinar la version mas reciente de este script ******"
 	elif [ "$remoteversion" -gt "$(echo $VERSION | sed 's:\.::g')" ]; then
 		soho_echo "**** Hay una version nueva de este script ****"
 		echo "**** Visita http://www.michael-pratt.com para descargar la nueva version ****"
+		echo "**** Continuando.... ****"
 		sleep 5
 	elif [ "$remoteversion" -eq "$(echo $VERSION | sed 's:\.::g')" ]; then
 		echo "Estas usando la version mas reciente :)"
+	elif [ "$remoteversion" -lt "$(echo $VERSION | sed 's:\.::g')" ]; then
+		echo "**** Version 1337"
 	fi
 }
 
@@ -347,12 +347,11 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 	exit 0
 fi
 
+soho_requires curl ${DIALOG} wget && clear
 soho_echo "======================================================================="
 soho_echo "$APPNAME - $VERSION"
 echo "Las fotos pertenecen a la pagina de Soho | http://www.soho.com.co"
-echo "Script creado por Michael Pratt <pratt@hablarmierda.net>"
 soho_echo "======================================================================="
-soho_requires curl ${DIALOG} wget
 [ "$DEBUG" -eq 1 ] && soho_log "$(bash --version | head -n 1)" && soho_echo "Comando Usado: ./$(basename $0) $@"
 [ "$AUTOUPDATES" -eq 1 ] && soho_update
 soho_fetch_list
@@ -375,5 +374,3 @@ case "$1" in
       *) soho_menu;;
 esac
 exit 0
-# Por si acaso, un codigo de subscripcion a soho es "141516". Quizas lo tenga que usar en otras versiones :S
-# Por cierto. Si estas leyendo esto, espero que puedas enviarme mejorias a <pratt@hablarmierda.net>. Happy Hacking!
