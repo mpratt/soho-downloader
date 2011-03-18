@@ -28,7 +28,7 @@
 #set -e
 shopt -s checkwinsize
 APPNAME="Soho Downloader"
-VERSION="1.0.1"
+VERSION="1.0.2"
 CWD=$(pwd)
 TMPDIR=${TMPDIR:- $(mktemp -d -t soho_script.XXXXXX)}
 DOWNLOADDIR=${DOWNLOADDIR:- $CWD/GaleriaSoho}
@@ -69,7 +69,7 @@ soho_fetch_list()
 	local listurl="http://www.soho.com.co/galerias-mujeres/galeria/marbelle/15211" # No puede ser http://www.soho.com.co/home-mujeres!!
 	echo "Descargando la lista de modelos y ediciones ......"
 	#wget --user-agent="Mozilla/5.0" --quiet -O ${TMPDIR}/source ${listurl}
-	curl --connect-timeout 20 -A 'Mozilla/5.0' -s ${listurl} > ${TMPDIR}/source
+	curl --connect-timeout 20 -A 'Mozilla/5.0' -e 'http://www.soho.com.co' -c ${TMPDIR}/c.txt -s ${listurl} > ${TMPDIR}/source
 	egrep -i '<option (.*)?value="' ${TMPDIR}/source | uniq | egrep -i -o 'galeria([^"]+)' | sed 's:galerias-mujeres/::g; s:galeria/::g; s:/:|:g;' > ${TMPDIR}/ids
 	egrep -i '<option (.*)?value="' ${TMPDIR}/source | uniq | egrep -i 'galeria([^"]+)' | egrep -o '[[:digit:]]+</option>' | egrep -o '[[:digit:]]+' > ${TMPDIR}/eds
 
@@ -103,7 +103,7 @@ soho_download_gallery()
 	fi
 
 	echo "Opteniendo Informacion sobre la Galeria $gallery......... "
-	local images=$(curl --connect-timeout 20 -A 'Mozilla/5.0' -s -H 'content-type: text/xml' -d '<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><getGaleria xmlns="http://tempuri.org/"><idItem>'$gallery'</idItem><idTipoImagen>1</idTipoImagen></getGaleria></soap:Body></soap:Envelope>' http://www.soho.com.co/ws/wsGaleria.asmx |  sed 's/"/\n/g' | egrep -i -o 'http:(.*)jpg')
+	local images=$(curl -s -b ${TMPDIR}/c.txt --connect-timeout 20 -A 'Mozilla/5.0' -e 'http://www.soho.com.co' -d '{idItem:'$gallery',idTipoImagen:1}' -H 'content-type: application/json' -H 'SOAPAction: "http://tempuri.org/getGaleria"' http://www.soho.com.co/ws/wsGaleria.asmx/getGaleria |  sed 's/"/\n/g' | egrep -i -o 'http:(.*)jpg')
 	local galleryname=$(grep '|'$gallery'|' $TMPDIR/main_list | awk 'BEGIN {FS="|"} {print $1}')
 	local galleryedition=$(grep '|'$gallery'|' $TMPDIR/main_list | awk 'BEGIN {FS="|"} {print $3}')
 	local gallerypics=$(echo $images | wc -w)
@@ -115,6 +115,8 @@ soho_download_gallery()
 			soho_log "Nombre Galeria: $galleryname"
 			soho_log "Edicion Galeria: $galleryedition"
 			soho_log "Imagenes: $images"
+			soho_log "Comando: curl -s -b ${TMPDIR}/c.txt --connect-timeout 20 -A 'Mozilla/5.0' -e 'http://www.soho.com.co' -d '{idItem:'$gallery',idTipoImagen:1}' -H 'content-type: application/json' -H 'SOAPAction: \"http://tempuri.org/getGaleria\"' http://www.soho.com.co/ws/wsGaleria.asmx/getGaleria"
+			soho_log "-----------------"
 		fi
 
 		# Mejor un return que un exit, asi no se interrumpe ningun proceso
