@@ -1,6 +1,10 @@
 Soho Downloader Changelog:
 Autor: Michael Pratt <pratt@hablarmierda>
 
+Version 1.0.3 21/03/2011
+* Arreglé un bug pequeño en el script. En procesos largos se perdia la sesion asignada por el servidor de soho
+  y eso impedia conseguir informacion sobre las galerias.
+
 Version 1.0.2: 17/03/2011
 * Esta version resuelva los errores producidos por los ultimos cambios que le hicieron a la galeria.
 

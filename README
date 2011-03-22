@@ -1,6 +1,6 @@
 Soho Downloader
 ===============
-$version=1.0.2
+$version=1.0.3
 
 Script en Bash (para linux) que permite descargar las galerias encontradas en http://www.soho.com.co/home-mujeres
 Este script facilita el trabajo a los coleccionistas de imagenes y no pretende causarle daños a Soho.com ni al grupo Semana S.A.
@@ -8,7 +8,7 @@ Su proposito es primordialmente educativo, demostrando una de las tantas cosas q
 
 Este script permite:
 - Descargar TODAS las galerias
-- Seleccionar las galerias que se quieren descargar
+- Seleccionar las galerias que se quieran descargar
 - Buscar por modelos y descargar sus galerias
 - Descargar las galerias de la edicion mas reciente
 - Descargar galerias de las X ediciones mas recientes
@@ -24,8 +24,8 @@ Para que este script funcione debes tener los siguientes programas instalados
 Instrucciones
 =============
 1. Asegurate de cumplir con los requerimientos.
-2. Descarga este script y asegurate que el archivo soho-downloader tiene permisos de ejecucion (chmod +x soho-downloader).
-3. ./soho-downloader (o si prefieres ./soho-downloader --help)
+2. Descarga este script y asegurate que el archivo soho-downloader tenga permisos de ejecucion (chmod +x soho-downloader).
+3. ./soho-downloader (o si prefieres ./soho-downloader --help para ver todas las opciones)
 4. ???
 5. Profit!!
 

@@ -28,7 +28,7 @@
 #set -e
 shopt -s checkwinsize
 APPNAME="Soho Downloader"
-VERSION="1.0.2"
+VERSION="1.0.3"
 CWD=$(pwd)
 TMPDIR=${TMPDIR:- $(mktemp -d -t soho_script.XXXXXX)}
 DOWNLOADDIR=${DOWNLOADDIR:- $CWD/GaleriaSoho}
@@ -60,16 +60,29 @@ soho_exit()
 }
 
 #################################################################
+# Funcion encargada de mantener la sesion!
+#################################################################
+soho_session()
+{
+	local session="http://www.soho.com.co/home-galerias"
+	local referrer="http://www.soho.com.co"
+	curl --connect-timeout 20 -A 'Mozilla/5.0' -e ${referrer} -c ${TMPDIR}/c.txt -s ${reafirmurl} > ${TMPDIR}/session
+}
+
+#################################################################
 # Funcion encargada de crear una lista con toda la informacion
 # el Formato de la lista es NOMBREGALERIA|IDGALERIA|EDICION
 #################################################################
 soho_fetch_list()
 {
+	echo "Iniciando session"
+	soho_session
+
 	cd ${TMPDIR}
 	local listurl="http://www.soho.com.co/galerias-mujeres/galeria/marbelle/15211" # No puede ser http://www.soho.com.co/home-mujeres!!
 	echo "Descargando la lista de modelos y ediciones ......"
 	#wget --user-agent="Mozilla/5.0" --quiet -O ${TMPDIR}/source ${listurl}
-	curl --connect-timeout 20 -A 'Mozilla/5.0' -e 'http://www.soho.com.co' -c ${TMPDIR}/c.txt -s ${listurl} > ${TMPDIR}/source
+	curl --connect-timeout 20 -A 'Mozilla/5.0' -s ${listurl} > ${TMPDIR}/source
 	egrep -i '<option (.*)?value="' ${TMPDIR}/source | uniq | egrep -i -o 'galeria([^"]+)' | sed 's:galerias-mujeres/::g; s:galeria/::g; s:/:|:g;' > ${TMPDIR}/ids
 	egrep -i '<option (.*)?value="' ${TMPDIR}/source | uniq | egrep -i 'galeria([^"]+)' | egrep -o '[[:digit:]]+</option>' | egrep -o '[[:digit:]]+' > ${TMPDIR}/eds
 
@@ -86,9 +99,6 @@ soho_fetch_list()
 	echo "Combinando lista de modelos/ediciones"
 	paste -d "|" ${TMPDIR}/ids ${TMPDIR}/eds > ${TMPDIR}/main_list
 	rm -rf ${TMPDIR}/{ids,eds,source}
-
-	# TODO: Ver si puedo usar otro metodo para coger la lista MAS RECIENTE de modelos/ediciones, probablemente via:
-	# <?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><getLstGalerias xmlns="http://tempuri.org/"><titulo>string</titulo><orden>string</orden><tipoItem>int</tipoItem><pagina>int</pagina></getLstGalerias></soap:Body></soap:Envelope>
 }
 
 #################################################################
@@ -102,8 +112,9 @@ soho_download_gallery()
 		return 1
 	fi
 
+	soho_session
 	echo "Opteniendo Informacion sobre la Galeria $gallery......... "
-	local images=$(curl -s -b ${TMPDIR}/c.txt --connect-timeout 20 -A 'Mozilla/5.0' -e 'http://www.soho.com.co' -d '{idItem:'$gallery',idTipoImagen:1}' -H 'content-type: application/json' -H 'SOAPAction: "http://tempuri.org/getGaleria"' http://www.soho.com.co/ws/wsGaleria.asmx/getGaleria |  sed 's/"/\n/g' | egrep -i -o 'http:(.*)jpg')
+	local images=$(curl -s -b ${TMPDIR}/c.txt --connect-timeout 20 -A 'Mozilla/5.0' -e 'http://www.soho.com.co/home-galerias' -d '{idItem:'$gallery',idTipoImagen:1}' -H 'content-type: application/json' -H 'SOAPAction: "http://tempuri.org/getGaleria"' http://www.soho.com.co/ws/wsGaleria.asmx/getGaleria |  sed 's/"/\n/g' | egrep -i -o 'http:(.*)jpg')
 	local galleryname=$(grep '|'$gallery'|' $TMPDIR/main_list | awk 'BEGIN {FS="|"} {print $1}')
 	local galleryedition=$(grep '|'$gallery'|' $TMPDIR/main_list | awk 'BEGIN {FS="|"} {print $3}')
 	local gallerypics=$(echo $images | wc -w)
@@ -116,6 +127,7 @@ soho_download_gallery()
 			soho_log "Edicion Galeria: $galleryedition"
 			soho_log "Imagenes: $images"
 			soho_log "Comando: curl -s -b ${TMPDIR}/c.txt --connect-timeout 20 -A 'Mozilla/5.0' -e 'http://www.soho.com.co' -d '{idItem:'$gallery',idTipoImagen:1}' -H 'content-type: application/json' -H 'SOAPAction: \"http://tempuri.org/getGaleria\"' http://www.soho.com.co/ws/wsGaleria.asmx/getGaleria"
+			soho_log "Cookie: $(cat ${TMPDIR}/c.txt)"
 			soho_log "-----------------"
 		fi
 
