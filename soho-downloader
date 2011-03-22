@@ -66,7 +66,7 @@ soho_session()
 {
 	local session="http://www.soho.com.co/home-galerias"
 	local referrer="http://www.soho.com.co"
-	curl --connect-timeout 20 -A 'Mozilla/5.0' -e ${referrer} -c ${TMPDIR}/c.txt -s ${reafirmurl} > ${TMPDIR}/session
+	curl --connect-timeout 20 -A 'Mozilla/5.0' -e ${referrer} -c ${TMPDIR}/c.txt -s ${session} > ${TMPDIR}/session
 }
 
 #################################################################
