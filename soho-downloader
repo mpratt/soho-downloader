@@ -361,7 +361,7 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 	exit 0
 fi
 
-soho_requires curl ${DIALOG} wget && clear
+soho_requires curl ${DIALOG} wget bc && clear
 soho_echo "======================================================================="
 soho_echo "$APPNAME - $VERSION"
 echo "Las fotos pertenecen a la pagina de Soho | http://www.soho.com.co"

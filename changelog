@@ -1,34 +1,39 @@
 Soho Downloader Changelog:
 Autor: Michael Pratt <pratt@hablarmierda>
 
-Version 1.0.3 21/03/2011
-* Arreglé un bug pequeño en el script. En procesos largos se perdia la sesion asignada por el servidor de soho
-  y eso impedia conseguir informacion sobre las galerias.
+Version 1.0.3 21/03/2011 (silent Update 28/05/2011)
+* Agregué BC a la lista de requerimientos tanto en el README como en el mismo script.
+  Gracias a Darkcarard por la info!
+
+* El README ahora contiene instrucciones para poner a funcionar el script en windows.
+
+* Arreglé un bug pequeño. En procesos largos se perdía la sesión asignada por el servidor de soho
+  y eso impedía conseguir información sobre las galerías.
 
 Version 1.0.2: 17/03/2011
-* Esta version resuelva los errores producidos por los ultimos cambios que le hicieron a la galeria.
+* Esta versión resuelve los errores producidos por los últimos cambios que le hicieron a la galería.
 
 Version 1.0.1: 08/03/2011
 * Mejorias al README y al script en si. Principalmente estuve tratando de mejorar la velocidad de inicio.
 
 Version 1.0.0: 27/02/2011
 * Llego la hora de reescribir este script. La gloriosa version 0.9.9 dejo de funcionar en diciembre del 2010,
-  pues soho.com cambio su galeria. Ahora soho usa SOAP (json) para servir la informacion de las galerias (Casi como
+  pues soho.com cambio su galería. Ahora soho usa SOAP (json) para servir la información de las galerías (Casi como
   lo hizo inicialmente en el 2007). El script ahora depende del programa CURL. Varias opciones fueron cambiadas.
 
 * El proyecto ahora sera hospedado en http://github.com/mpratt/soho-downloader/
 
 Version 0.9.9: 28/05/2010
-* Bueno, ya era hora de actualizar este script!! Hize varias mejoras al algoritmo que encuentra y descarga las imagenes.
+* Bueno, ya era hora de actualizar este script!! Hice varias mejoras al algoritmo que encuentra y descarga las imágenes.
   Ahora no hay que adivinar tanto para obtener las fotos "protegidas" (gracias cookie forging!). El script ha sido desarrollado
-  en Bash 4.1.7, pero deberia funcionar con versiones menores. Tambien mejore varios aspectos del script,
-  hay un par de funciones nuevas y cambie algunos parametros. Para futuras versiones, hay que contemplar la opcion de
-  autenticarse ante la pagina con un codigo de subscripcion y ahi si no habria necesidad de "hackear" la cookie.
+  en Bash 4.1.7, pero deberia funcionar con versiones menores. También mejoré varios aspectos del script,
+  hay un par de funciones nuevas y cambié algunos parámetros. Para futuras versiones, hay que contemplar la opción de
+  autenticarse ante la pagina con un código de subscripción y ahí si no habría necesidad de "hackear" la cookie.
 
 Version 0.9.2: 12/12/2008
-* Un poco de Limpieza en general. Tambien Separe la creacion de la lista
-  principal de modelos en una funcion. Eso hace las cosas mas flexibles para cuando tenga
-  que cambiar el metodo que uso para bajar las modelos.
+* Un poco de Limpieza en general. También Separe la creación de la lista
+  principal de modelos en una función. Eso hace las cosas mas flexibles para cuando tenga
+  que cambiar el método que uso para bajar las modelos.
 
 Version 0.9.1: 24/11/2008
 * Para los que usan el menu con 'dialog' hay varios detalles que han mejorado.

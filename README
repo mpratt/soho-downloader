@@ -2,29 +2,30 @@ Soho Downloader
 ===============
 $version=1.0.3
 
-Script en Bash (para linux) que permite descargar las galerias encontradas en http://www.soho.com.co/home-mujeres
-Este script facilita el trabajo a los coleccionistas de imagenes y no pretende causarle daños a Soho.com ni al grupo Semana S.A.
-Su proposito es primordialmente educativo, demostrando una de las tantas cosas que se pueden lograr en bash.
+Script en Bash (para linux) que permite descargar las galerías encontradas en http://www.soho.com.co/home-mujeres
+Este script facilita el trabajo a los coleccionistas de imágenes y no pretende causarle daños a Soho.com ni al grupo Semana S.A.
+Su propósito es primordialmente educativo, demostrando una de las tantas cosas que se pueden lograr en bash.
 
 Este script permite:
-- Descargar TODAS las galerias
-- Seleccionar las galerias que se quieran descargar
+- Descargar TODAS las galerías
+- Seleccionar las galerías que se quieran descargar
 - Buscar por modelos y descargar sus galerias
-- Descargar las galerias de la edicion mas reciente
+- Descargar las galerías de la edición mas reciente
 - Descargar galerias de las X ediciones mas recientes
 
 Requerimientos
 ==============
 Para que este script funcione debes tener los siguientes programas instalados
-- Logicamente una shell bash
+- Lógicamente una shell bash
 - dialog
 - wget
 - curl
+- bc
 
 Instrucciones
 =============
-1. Asegurate de cumplir con los requerimientos.
-2. Descarga este script y asegurate que el archivo soho-downloader tenga permisos de ejecucion (chmod +x soho-downloader).
+1. Asegúrate de cumplir con los requerimientos.
+2. Descarga este script y asegúrate que el archivo soho-downloader tenga permisos de ejecución (chmod +x soho-downloader).
 3. ./soho-downloader (o si prefieres ./soho-downloader --help para ver todas las opciones)
 4. ???
 5. Profit!!
@@ -32,29 +33,54 @@ Instrucciones
 FAQ
 ===
 1. Este script funciona en Windows?
-- No! Puedes descargar el programa cygwin y ver si ahi puedes ejecutar este script. Quizas funcione....
-  Este script fue desarrollado sobre linux y bash 4.1.7.
+- Si y no! Hay que instalar varias aplicaciones adicionales. Para mas información ver la sección de Windows.
 
-2. Cuando sale la version para Windows?
-- Dudo mucho que salga una version en windows, sobretodo porque yo no uso windows :'(
-  Acépte el reto y haga usted la version para windows :)!
+2. Cuando sale la versión nativa para Windows?
+- Dudo mucho que salga una versión nativa para windows, sobretodo porque yo casi no lo uso :'(
+  Acépte el reto y haga usted la versión para windows :)!
 
 3. Por que en bash y no en python, C, ruby o Java?
-- La primera version de este script viene del 2007 y era solo una respuesta a un reto "pendejo"
-  que nos habiamos planteado unos amigos y el fin era demostrar lo que se podia hacer en bash.
-  Desde ahi empezo la tradicion de usar bash. Traducir este script a python o ruby deberia ser
+- La primera versión de este script viene del 2007 y era solo una respuesta a un reto "pendejo"
+  que nos habíamos planteado unos amigos y el fin era demostrar lo que se podía hacer en bash.
+  Desde ahí empezó la tradición de usar bash. Traducir este script a python o ruby debería ser
   bastante sencillo, se lo dejo como tarea! :)
 
 4. Esta peye no funciona! >:(
 - Si el script no funciona, entonces puede enviarme un reporte, adjuntando el archivo "soho.log".
-  Tambien puedes ejecutar el script asi: 'DEBUG=1 ./soho-downloader' para obtener mas informacion
-  sobre los errores.
+  También puedes ejecutar el script así: 'DEBUG=1 ./soho-downloader' para obtener mas información
+  acerca de los errores.
 
 5. Quiero saber mas de usted!
 - Hola! Me llamo http://www.michael-pratt.com
 
 6. Usted si no tiene nada que hacer, cierto?
 - Asi es!
+
+Soho Downloader en Windows
+==========================
+Debo hacer énfasis en que este script fue desarrollado sobre linux y bash 4.1.7, nunca fue diseñado
+para trabajar en Windows. Para que este script funcione se debe instalar cygwin y esa es una aplicación bastante
+grande y descargar e instalar los paquetes adicionales puede tomar tiempo.
+
+Estos son los pasos que debes que seguir (probado en windows XP):
+- Tener Cygwin instalado (http://www.cygwin.com/).
+- Los paquetes adicionales que se deben instalar son:
+	– Wget
+	– Curl
+	– Todo lo relacionado con ncurses/libncurses
+	– bc (En la Categoría de Math)
+	– Todo en la Categoria de Development (gcc, make, etc) porque es necesario compilar dialog
+	– Asegúrate de tener grep, awk, tr, wc instalados.
+- Compilar Dialog (./configure && make && make install) (ftp://invisible-island.net/dialog/dialog.tar.gz)
+- Descargar el script soho-downloader a "C:" para evitar problemas con directorios que tengan espacios.
+- Para correr el script usar el comando "AUTOUPDATES=0 DEBUG=1 ./soho-downloader"
+
+Pruebas:
+http://i.imgur.com/Ei3Am.png
+http://i.imgur.com/LIOOE.png
+http://i.imgur.com/4feJY.png
+
+Mucha Suerte!
 
 Licencia
 ========
