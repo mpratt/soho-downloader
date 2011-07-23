@@ -28,13 +28,17 @@
 #set -e
 shopt -s checkwinsize
 APPNAME="Soho Downloader"
-VERSION="1.0.3"
+VERSION="1.0.4"
 CWD=$(pwd)
-TMPDIR=${TMPDIR:- $(mktemp -d -t soho_script.XXXXXX)}
-DOWNLOADDIR=${DOWNLOADDIR:- $CWD/GaleriaSoho}
-DIALOG=${DIALOG:- dialog}
-AUTOUPDATES=${AUTOUPDATES:- 1}
-DEBUG=${DEBUG:- 0}
+TMPDIR=${TMPDIR:-$(mktemp -d -t soho_script.XXXXXX)}
+DOWNLOADDIR=${DOWNLOADDIR:-$CWD/GaleriaSoho}
+DIALOG=${DIALOG:-dialog}
+AUTOUPDATES=${AUTOUPDATES:-1}
+REFERRERS=( "http://www.soho.com.co" "http://www.soho.com.co/home-galerias" "http://www.soho.com.co/galerias-mujeres/galeria/marbelle/15211")
+USERAGENTS=( "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)" "Mozilla/5.0 (compatible; MSIE 8.0; Windows NT 5.2; Trident/4.0; Media Center PC 4.0; SLCC1; .NET CLR 3.0.04320)" "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:2.0.1) Gecko/20110606 Firefox/4.0.1" )
+LISTFETCH=( "http://www.soho.com.co/galerias-mujeres/galeria/adriana-silva/16550" "http://www.soho.com.co/galerias-mujeres/galeria/marbelle/15211" "http://www.soho.com.co/galerias-mujeres/galeria/paola-rey/18331" )
+MAXTRIES=${MAXTRIES:-8}
+DEBUG=${DEBUG:-0}
 
 ! [ -e "$DOWNLOADDIR" ] && (mkdir -p ${DOWNLOADDIR})
 ! [ -e "$TMPDIR" ] && (mkdir -p ${TMPDIR})
@@ -43,8 +47,8 @@ trap "soho_exit" 0 1 2 5 15
 #################################################################
 # Funcion encargada de crear un logsito bien sabroso XD
 #################################################################
-soho_log() { echo "$(date +%H:%M:%S): ${1}" >> ${CWD}/soho.log; }
-soho_echo() { echo ${1} && soho_log "${1}"; }
+soho_log() { echo "$(date +%H:%M:%S): ${1}" >> "${CWD}/soho.log"; }
+soho_echo() { echo "${1}" && soho_log "${1}"; }
 
 #################################################################
 # Funcion encargada de limpiar el directorio temporal
@@ -64,9 +68,11 @@ soho_exit()
 #################################################################
 soho_session()
 {
-	local session="http://www.soho.com.co/home-galerias"
-	local referrer="http://www.soho.com.co"
-	curl --connect-timeout 20 -A 'Mozilla/5.0' -e ${referrer} -c ${TMPDIR}/c.txt -s ${session} > ${TMPDIR}/session
+	# "http://www.soho.com.co/home"
+	local session=${LISTFETCH[$((RANDOM %= $((${#LISTFETCH[@]}))))]}
+	local referrer=${REFERRERS[$((RANDOM %= $((${#REFERRERS[@]}))))]}
+	local useragent=${USERAGENTS[$((RANDOM %= $((${#USERAGENTS[@]}))))]}
+	curl -L --connect-timeout 20 -A "${useragent}" -e ${referrer} -c ${TMPDIR}/c.txt -s ${session} > ${TMPDIR}/session
 }
 
 #################################################################
@@ -79,21 +85,21 @@ soho_fetch_list()
 	soho_session
 
 	cd ${TMPDIR}
-	local listurl="http://www.soho.com.co/galerias-mujeres/galeria/marbelle/15211" # No puede ser http://www.soho.com.co/home-mujeres!!
+	local listurl=${LISTFETCH[$((RANDOM %= $((${#LISTFETCH[@]}))))]}
+	local useragent=${USERAGENTS[$((RANDOM %= $((${#USERAGENTS[@]}))))]}
 	echo "Descargando la lista de modelos y ediciones ......"
-	#wget --user-agent="Mozilla/5.0" --quiet -O ${TMPDIR}/source ${listurl}
-	curl --connect-timeout 20 -A 'Mozilla/5.0' -s ${listurl} > ${TMPDIR}/source
+	curl -L --connect-timeout 20 -A ${useragent} -s ${listurl} > ${TMPDIR}/source
 	egrep -i '<option (.*)?value="' ${TMPDIR}/source | uniq | egrep -i -o 'galeria([^"]+)' | sed 's:galerias-mujeres/::g; s:galeria/::g; s:/:|:g;' > ${TMPDIR}/ids
 	egrep -i '<option (.*)?value="' ${TMPDIR}/source | uniq | egrep -i 'galeria([^"]+)' | egrep -o '[[:digit:]]+</option>' | egrep -o '[[:digit:]]+' > ${TMPDIR}/eds
 
 	if [ "$(stat -c%s ${TMPDIR}/ids)" -eq 0 ] || [ "$(stat -c%s ${TMPDIR}/eds)" -eq 0 ]; then
-		soho_echo "Error Fatal! No pude encontrar la lista con las modelos y ediciones :("
+		soho_echo "*** Error Fatal! No pude encontrar la lista con las modelos y ediciones! (${listurl})"
 		echo "Verifica tu conexion a internet."
 		exit 1
 	fi
 
 	if [[ "$(cat ${TMPDIR}/ids | wc -l)" != "$(cat ${TMPDIR}/eds | wc -l)" ]]; then
-		soho_echo "Advertencia: El numero de ids ($(cat ${TMPDIR}/ids | wc -l)) no coincide con el numero de ediciones $(cat ${TMPDIR}/eds | wc -l)"
+		soho_echo "*** Advertencia: El numero de ids ($(cat ${TMPDIR}/ids | wc -l)) no coincide con el numero de ediciones $(cat ${TMPDIR}/eds | wc -l)"
 	fi
 
 	echo "Combinando lista de modelos/ediciones"
@@ -112,12 +118,29 @@ soho_download_gallery()
 		return 1
 	fi
 
-	soho_session
+	[ "$(echo $[($RANDOM%10)+1])" -gt "6" ] && soho_session
 	echo "Opteniendo Informacion sobre la Galeria $gallery......... "
-	local images=$(curl -s -b ${TMPDIR}/c.txt --connect-timeout 20 -A 'Mozilla/5.0' -e 'http://www.soho.com.co/home-galerias' -d '{idItem:'$gallery',idTipoImagen:1}' -H 'content-type: application/json' -H 'SOAPAction: "http://tempuri.org/getGaleria"' http://www.soho.com.co/ws/wsGaleria.asmx/getGaleria |  sed 's/"/\n/g' | egrep -i -o 'http:(.*)jpg')
+	local referrer=${REFERRERS[$((RANDOM %= $((${#REFERRERS[@]}))))]}
+	local useragent=${USERAGENTS[$((RANDOM %= $((${#USERAGENTS[@]}))))]}
+	local images=$(curl -L -s -b ${TMPDIR}/c.txt --connect-timeout 20 -A "${useragent}" -e $referrer -d '{idItem:'$gallery',idTipoImagen:1}' -H 'content-type: application/json' -H 'SOAPAction: "http://tempuri.org/getGaleria"' http://www.soho.com.co/ws/wsGaleria.asmx/getGaleria |  sed 's/"/\n/g' | egrep -i -o 'http:(.*)jpg')
 	local galleryname=$(grep '|'$gallery'|' $TMPDIR/main_list | awk 'BEGIN {FS="|"} {print $1}')
 	local galleryedition=$(grep '|'$gallery'|' $TMPDIR/main_list | awk 'BEGIN {FS="|"} {print $3}')
 	local gallerypics=$(echo $images | wc -w)
+
+	if [ -z "$images" ] && [ "${MAXTRIES}" -gt "0" ] && [ -n "$galleryname" ] && [ -n "$galleryedition" ]; then
+		local tries=1
+		while [ -z "$images" ] && [ "${tries}" -le "${MAXTRIES}" ]; do
+			local sleep=$(echo $[($RANDOM % 7)+1])
+			referrer=${REFERRERS[$((RANDOM %= $((${#REFERRERS[@]}))))]}
+
+			soho_echo "* Reintentando ${gallery} (${tries} de ${MAXTRIES} intentos, esperando ${sleep} segundos)"
+			images=$(curl -L -s -b ${TMPDIR}/c.txt --connect-timeout 20 -A "${useragent}" -e $referrer -d '{idItem:'$gallery',idTipoImagen:1}' -H 'content-type: application/json' -H 'SOAPAction: "http://tempuri.org/getGaleria"' http://www.soho.com.co/ws/wsGaleria.asmx/getGaleria |  sed 's/"/\n/g' | egrep -i -o 'http:(.*)jpg')
+			gallerypics=$(echo $images | wc -w)
+			sleep ${sleep}
+
+			((tries++))
+		done
+	fi
 
 	if [ -z "$galleryname" ] || [ -z "$galleryedition" ] || [ -z "$images" ]; then
 		soho_echo "*** Error: No existe la galeria con id ${gallery}"
@@ -126,7 +149,7 @@ soho_download_gallery()
 			soho_log "Nombre Galeria: $galleryname"
 			soho_log "Edicion Galeria: $galleryedition"
 			soho_log "Imagenes: $images"
-			soho_log "Comando: curl -s -b ${TMPDIR}/c.txt --connect-timeout 20 -A 'Mozilla/5.0' -e 'http://www.soho.com.co' -d '{idItem:'$gallery',idTipoImagen:1}' -H 'content-type: application/json' -H 'SOAPAction: \"http://tempuri.org/getGaleria\"' http://www.soho.com.co/ws/wsGaleria.asmx/getGaleria"
+			soho_log "Comando: curl -L -s -b ${TMPDIR}/c.txt --connect-timeout 20 -A \"${useragent}\" -e $referrer -d '{idItem:'$gallery',idTipoImagen:1}' -H 'content-type: application/json' -H 'SOAPAction: \"http://tempuri.org/getGaleria\"' http://www.soho.com.co/ws/wsGaleria.asmx/getGaleria"
 			soho_log "Cookie: $(cat ${TMPDIR}/c.txt)"
 			soho_log "-----------------"
 		fi
@@ -145,6 +168,7 @@ soho_download_gallery()
 	soho_log "Bajando $gallerypics imagenes de la galeria $galleryname"
 
 	local i=1
+	local downloaded=0
 	for url in ${images}; do
 		[ "$DEBUG" -eq "1" ] && soho_log "Bajando Galeria $galleryname - Imagen: $url"
 		echo "Bajando: $i de $gallerypics"
@@ -152,14 +176,15 @@ soho_download_gallery()
 
 		if [ -f "pic${i}.jpg" ] && [ "$(stat -c%s pic${i}.jpg)" -gt 0 ]; then
 				mv pic${i}.jpg ${galleryname}_Edicion-${galleryedition}_${i}.jpg
+				((downloaded++))
 			else
-				soho_echo "Error: No pude descargar la imagen $url"
+				soho_echo "*** Error: No pude descargar la imagen $url"
 		fi
 
 		((i++))
 	done
 
-	[ "$i" -lt "$gallerypics" ] && soho_log "***** La galeria $galleryname no fue bajada completamente ($i de $gallerypics)"
+	[ "${downloaded}" -lt "$gallerypics" ] && soho_log "*** La galeria $galleryname no fue bajada completamente (${downloaded} de $gallerypics)"
 	echo "======================================================================="
 	echo "Galeria $galleryname terminada!"
 	echo "======================================================================="
@@ -217,8 +242,7 @@ soho_search()
 	local i=1
 	local total=$(cat $TMPDIR/main_list | wc -l)
 	touch ${TMPDIR}/dialog_in
-	exec < ${TMPDIR}/main_list
-	(while read line; do
+	(cat ${TMPDIR}/main_list | while read line; do
 		local match=$(echo $line | egrep -i $(echo $@ | sed "s: :|:g"))
 
 		if [ -n "$match" ]; then
@@ -265,22 +289,54 @@ soho_query()
 #################################################################
 soho_update()
 {
-	echo "Buscando por actualizaciones......"
-	local updateurl="https://github.com/mpratt/soho-downloader/raw/master/README"
-	local remoteversion=$(curl --connect-timeout 10 -A 'Mozilla/5.0' -s $updateurl | egrep -i '\$version=(.*)' | egrep -o '[[:digit:]\.]+' | sed 's:\.::g')
+	touch ${TMPDIR}/lock
+	soho_loading "Buscando por actualizaciones......" ${TMPDIR}/lock &
 
-	if [ -z "$remoteversion" ]; then
-		soho_echo "***** No pude determinar la version mas reciente de este script ******"
-	elif [ "$remoteversion" -gt "$(echo $VERSION | sed 's:\.::g')" ]; then
+	local updateurl="https://raw.github.com/mpratt/soho-downloader/master/README"
+	local remoteversion=$(curl -L --connect-timeout 10 -A 'Mozilla/5.0' -s ${updateurl} | egrep -i '\$version=(.*)' | egrep -o '[[:digit:]\.]+' | sed 's:\.::g')
+	local localversion=$(echo $VERSION | sed 's:\.::g')
+	rm -rf ${TMPDIR}/lock
+	echo ""
+
+	if [ -z "$(echo ${remoteversion} | egrep '^[[:digit:]]+$')" ]; then
+		soho_echo "***** No pude determinar la version mas reciente de este script (${remoteversion})******"
+	elif [ "${remoteversion}" -gt "${localversion}" ]; then
 		soho_echo "**** Hay una version nueva de este script ****"
 		echo "**** Visita http://www.michael-pratt.com para descargar la nueva version ****"
 		echo "**** Continuando.... ****"
 		sleep 5
-	elif [ "$remoteversion" -eq "$(echo $VERSION | sed 's:\.::g')" ]; then
+	elif [ "${remoteversion}" -eq "${localversion}" ]; then
 		echo "Estas usando la version mas reciente :)"
-	elif [ "$remoteversion" -lt "$(echo $VERSION | sed 's:\.::g')" ]; then
+	elif [ "${remoteversion}" -lt "${localversion}" ]; then
 		echo "**** Version 1337"
 	fi
+
+	return 0
+}
+
+#################################################################
+# Funcion encargada de mostrar el "spinner"
+#################################################################
+soho_loading()
+{
+	[ "${#}" -lt "2" ] && return 0
+	local message=${1}
+	local lockfile=${2}
+	local spin=( "|" "/" "-" "\\" )
+	local parts=${#spin[@]}
+	local count=0
+
+	tput civis
+	echo -n "${message} "
+	while [ -e "${lockfile}" ]; do
+		count=$(( count + 1 ))
+		tput sc
+		echo -n ${spin[$((count%parts))]}
+		tput rc
+		sleep 0.1
+	done
+	tput cnorm
+	[ -n "${3}" ] && echo " ${3}"
 }
 
 #################################################################
@@ -324,6 +380,7 @@ soho_menu()
 			  "6" "Asegurate de estar usando la version mas reciente de este Script" \
 			  "7" "Necesitas Ayuda?" 2> ${TMPDIR}/menu
 
+	clear
 	case "$(cat ${TMPDIR}/menu)" in
 		1) soho_search ".*";;
 		2) soho_download_all;;
