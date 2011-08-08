@@ -28,7 +28,7 @@
 #set -e
 shopt -s checkwinsize
 APPNAME="Soho Downloader"
-VERSION="1.0.4"
+VERSION="1.0.5"
 CWD=$(pwd)
 TMPDIR=${TMPDIR:-$(mktemp -d -t soho_script.XXXXXX)}
 DOWNLOADDIR=${DOWNLOADDIR:-$CWD/GaleriaSoho}
@@ -36,7 +36,7 @@ DIALOG=${DIALOG:-dialog}
 AUTOUPDATES=${AUTOUPDATES:-1}
 REFERRERS=( "http://www.soho.com.co" "http://www.soho.com.co/home-galerias" "http://www.soho.com.co/galerias-mujeres/galeria/marbelle/15211")
 USERAGENTS=( "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)" "Mozilla/5.0 (compatible; MSIE 8.0; Windows NT 5.2; Trident/4.0; Media Center PC 4.0; SLCC1; .NET CLR 3.0.04320)" "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:2.0.1) Gecko/20110606 Firefox/4.0.1" )
-LISTFETCH=( "http://www.soho.com.co/galerias-mujeres/galeria/adriana-silva/16550" "http://www.soho.com.co/galerias-mujeres/galeria/marbelle/15211" "http://www.soho.com.co/galerias-mujeres/galeria/paola-rey/18331" )
+LISTFETCH=( "http://www.soho.com.co/galerias-mujeres/galeria/adriana-silva/16550" "http://www.soho.com.co/galerias-mujeres/galeria/marbelle/15211" "http://www.soho.com.co/galerias-mujeres/galeria/adriana-riascos/15959" )
 MAXTRIES=${MAXTRIES:-8}
 DEBUG=${DEBUG:-0}
 
