@@ -1,6 +1,6 @@
 Soho Downloader
 ===============
-$version=1.0.5
+$version=1.0.6
 
 Script en Bash (para linux) que permite descargar las galerías encontradas en http://www.soho.com.co/home-mujeres
 Este script facilita el trabajo a los coleccionistas de imágenes y no pretende causarle daños a Soho.com ni al grupo Semana S.A.

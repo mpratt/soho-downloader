@@ -28,7 +28,7 @@
 #set -e
 shopt -s checkwinsize
 APPNAME="Soho Downloader"
-VERSION="1.0.5"
+VERSION="1.0.6"
 CWD=$(pwd)
 TMPDIR=${TMPDIR:-$(mktemp -d -t soho_script.XXXXXX)}
 DOWNLOADDIR=${DOWNLOADDIR:-$CWD/GaleriaSoho}
@@ -40,8 +40,8 @@ LISTFETCH=( "http://www.soho.com.co/galerias-mujeres/galeria/adriana-silva/16550
 MAXTRIES=${MAXTRIES:-8}
 DEBUG=${DEBUG:-0}
 
-! [ -e "$DOWNLOADDIR" ] && (mkdir -p ${DOWNLOADDIR})
-! [ -e "$TMPDIR" ] && (mkdir -p ${TMPDIR})
+! [ -e "${DOWNLOADDIR}" ] && (mkdir -p ${DOWNLOADDIR})
+! [ -e "${TMPDIR}" ] && (mkdir -p ${TMPDIR})
 
 trap "soho_exit" 0 1 2 5 15
 #################################################################
@@ -93,7 +93,8 @@ soho_fetch_list()
 	egrep -i '<option (.*)?value="' ${TMPDIR}/source | uniq | egrep -i 'galeria([^"]+)' | egrep -o '[[:digit:]]+</option>' | egrep -o '[[:digit:]]+' > ${TMPDIR}/eds
 
 	if [ "$(stat -c%s ${TMPDIR}/ids)" -eq 0 ] || [ "$(stat -c%s ${TMPDIR}/eds)" -eq 0 ]; then
-		soho_echo "*** Error Fatal! No pude encontrar la lista con las modelos y ediciones! (${listurl})"
+		soho_echo "*** Error Fatal! No pude encontrar la lista con las modelos y ediciones!"
+		[ "$DEBUG" -eq "1" ] && soho_echo "Usando ${listurl} para buscar la lista."
 		echo "Verifica tu conexion a internet."
 		exit 1
 	fi
@@ -424,6 +425,7 @@ soho_echo "$APPNAME - $VERSION"
 echo "Las fotos pertenecen a la pagina de Soho | http://www.soho.com.co"
 soho_echo "======================================================================="
 [ "$DEBUG" -eq 1 ] && soho_log "$(bash --version | head -n 1)" && soho_echo "Comando Usado: ./$(basename $0) $@"
+[ -e "${CWD}/dialogrc" ] && export DIALOGRC="${CWD}/dialogrc" && soho_log "Usando configuracion de colores ${CWD}/dialogrc"
 [ "$AUTOUPDATES" -eq 1 ] && soho_update
 soho_fetch_list
 
